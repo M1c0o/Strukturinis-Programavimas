@@ -5,22 +5,19 @@
 
 using namespace std;
 
-// Konstantos
-const int MAX_MENU = 20; // Maksimalus meniu áraðø kiekis
+const int MAX_MENU = 20;
 
-// Privaloma struktûra
 struct menuItemType {
-    string menuItem;     // patiekalo pavadinimas
-    double menuPrice;    // patiekalo kaina
+    string menuItem;
+    double menuPrice;
 };
 
-// Papildoma struktûra uþsakymui sekti
 struct orderType {
-    int menuIndex; // Kuris patiekalas ið menuList
-    int count;     // Kiek porcijø
+    int menuIndex;
+    int count;
 };
 
-// Funkcijø prototipai
+// FunkcijÅ³ prototipai
 void getData(menuItemType menuList[], int &itemCount);
 void showMenu(menuItemType menuList[], int itemCount);
 void printCheck(menuItemType menuList[], orderType userOrders[], int orderCount);
@@ -31,7 +28,6 @@ int main() {
     int itemCount = 0;
     int orderCount = 0;
 
-    // 1. Nuskaitome duomenis
     getData(menuList, itemCount);
 
     if (itemCount == 0) {
@@ -39,10 +35,8 @@ int main() {
         return 1;
     }
 
-    // 2. Rodome meniu
     showMenu(menuList, itemCount);
 
-    // 3. Uþsakymo procesas
     int choice;
     cout << "\nIveskite patiekalo numeri (arba 0, kad baigti): ";
     while (cin >> choice && choice != 0) {
@@ -51,8 +45,8 @@ int main() {
             cout << "Kiek porciju? ";
             cin >> qty;
 
-            if (qty > 0) {
-                userOrders[orderCount].menuIndex = choice - 1; // -1, nes masyvas prasideda nuo 0
+            if (qty > 0 && orderCount < MAX_MENU) {
+                userOrders[orderCount].menuIndex = choice - 1;
                 userOrders[orderCount].count = qty;
                 orderCount++;
             }
@@ -62,7 +56,6 @@ int main() {
         cout << "Kitas pasirinkimas (0 - baigti): ";
     }
 
-    // 4. Sàskaitos generavimas
     if (orderCount > 0) {
         printCheck(menuList, userOrders, orderCount);
     } else {
@@ -72,73 +65,86 @@ int main() {
     return 0;
 }
 
+// SUTVARKYTA FUNKCIJA (Pirmakursio lygis)
 void getData(menuItemType menuList[], int &itemCount) {
+    itemCount = 0;
     ifstream file("menu.txt");
-    if (file.is_open()) {
-        while (itemCount < MAX_MENU && file >> menuList[itemCount].menuItem >> menuList[itemCount].menuPrice) {
-            // Pakeièiame pabraukimo brûkðnius á tarpus dël graþaus rodymo
-            for (int i = 0; i < menuList[itemCount].menuItem.length(); i++) {
-                if (menuList[itemCount].menuItem[i] == '_') {
-                    menuList[itemCount].menuItem[i] = ' ';
-                }
+
+    if (!file.is_open()) return;
+
+    while (itemCount < MAX_MENU) {
+        string name = "";
+        char c;
+
+        // 1. Skaitome raides po vienÄ…, kol sutiksime skaiÄiÅ³ (kainos pradÅ¾iÄ…)
+        while (file.get(c)) {
+            // Jei simbolis yra skaiÄius (nuo 0 iki 9)
+            if (c >= '0' && c <= '9') {
+                // "GrÄ…Å¾iname" skaiÄiÅ³ atgal Ä¯ failÄ…, kad galÄ—tume jÄ¯ nuskaityti kaip double
+                file.putback(c);
+                break;
             }
+            name += c;
+        }
+
+        // Jei pasiekÄ—me failo pabaigÄ… ir nieko nenuskaitÄ—me - baigiam
+        if (file.eof()) break;
+
+        // 2. Dabar saugiai nuskaitome kainÄ…
+        double price;
+        if (file >> price) {
+            menuList[itemCount].menuItem = name;
+            menuList[itemCount].menuPrice = price;
             itemCount++;
         }
-        file.close();
+
+        // IÅ¡valome likusius tarpus ar naujas eilutes iki kito patiekalo
+        while (file && (file.peek() == ' ' || file.peek() == '\n' || file.peek() == '\r')) {
+            file.ignore();
+        }
     }
+    file.close();
 }
 
 void showMenu(menuItemType menuList[], int itemCount) {
-    cout << "Sveiki atvyke i restorana \"Skanu\"" << endl;
-    cout << "-----------------------------------" << endl;
+    cout << "\nRESTORANO MENIU" << endl;
+    cout << "-----------------------------------------------" << endl;
     for (int i = 0; i < itemCount; i++) {
         cout << i + 1 << ". " << left << setw(35)
              << menuList[i].menuItem << " "
              << fixed << setprecision(2) << menuList[i].menuPrice << " EUR" << endl;
     }
-    cout << "-----------------------------------" << endl;
-    cout << "Iveskite skaiciu ir spauskite Enter." << endl;
+    cout << "-----------------------------------------------" << endl;
 }
 
 void printCheck(menuItemType menuList[], orderType userOrders[], int orderCount) {
     ofstream outFile("receipt.txt");
     double subtotal = 0;
-    double taxRate = 0.21;
 
-    // Antraðtë ekrane
-    cout << "\nJUSU SASKAITA:" << endl;
-    cout << "-----------------------------------" << endl;
-
-    // Antraðtë faile
-    outFile << "JUSU SASKAITA:" << endl;
-    outFile << "-----------------------------------" << endl;
-
+    cout << "\n--- CEKIS ---" << endl;
     for (int i = 0; i < orderCount; i++) {
         int idx = userOrders[i].menuIndex;
-        int qty = userOrders[i].count;
-        double linePrice = menuList[idx].menuPrice * qty;
-        subtotal += linePrice;
+        double kaina = menuList[idx].menuPrice * userOrders[i].count;
+        subtotal += kaina;
 
-        // Iðvedimas á ekranà
-        cout << qty << " " << left << setw(30) << menuList[idx].menuItem
-             << fixed << setprecision(2) << linePrice << " EUR" << endl;
+        cout << userOrders[i].count << " x " << left << setw(30)
+             << menuList[idx].menuItem << kaina << " EUR" << endl;
 
-        // Iðvedimas á failà
-        outFile << qty << " " << left << setw(30) << menuList[idx].menuItem
-                << fixed << setprecision(2) << linePrice << " EUR" << endl;
+        outFile << userOrders[i].count << " x " << left << setw(30)
+                << menuList[idx].menuItem << kaina << " EUR" << endl;
     }
 
-    double pvm = subtotal * taxRate;
-    double total = subtotal + pvm;
+    double pvm = subtotal * 0.21;
+    double viso = subtotal + pvm;
 
-    // Galutinës sumos á ekranà
-    cout << "\n" << left << setw(32) << "Mokesciai (21%)" << pvm << " EUR" << endl;
-    cout << left << setw(32) << "Galutine suma" << total << " EUR" << endl;
+    cout << "-----------------------------------------------" << endl;
+    cout << "PVM (21%): " << pvm << " EUR" << endl;
+    cout << "VISO: " << viso << " EUR" << endl;
 
-    // Galutinës sumos á failà
-    outFile << "\n" << left << setw(32) << "Mokesciai (21%)" << pvm << " EUR" << endl;
-    outFile << left << setw(32) << "Galutine suma" << total << " EUR" << endl;
+    outFile << "-----------------------------------------------" << endl;
+    outFile << "PVM (21%): " << pvm << " EUR" << endl;
+    outFile << "VISO: " << viso << " EUR" << endl;
 
     outFile.close();
-    cout << "\nSaskaita issaugota receipt.txt faile." << endl;
 }
+
